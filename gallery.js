@@ -88,7 +88,7 @@ let currentPopupPost = null;
 let currentPopupImageIndex = 0;
 let isZoomed = false;
 
-function openPopup(post, imageIndex = 0) {
+function openPopup(post, imageIndex = 0, pushState = true) {
     currentPopupPost = post;
     currentPopupImageIndex = imageIndex;
     isZoomed = false;
@@ -113,9 +113,15 @@ function openPopup(post, imageIndex = 0) {
 
     popup.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+
+    // Update URL and history state
+    if (pushState) {
+        const url = `?postId=${post.postId}&imageIndex=${currentPopupImageIndex}`;
+        history.pushState({ postId: post.postId, imageIndex: currentPopupImageIndex }, '', url);
+    }
 }
 
-function closePopup() {
+function closePopup(pushState = true) {
     const popup = document.getElementById('popup');
     const popupImage = document.getElementById('popupImage');
     popup.style.display = 'none';
@@ -127,6 +133,11 @@ function closePopup() {
     popupImage.classList.remove('zoomed');
     // Remove zoom click listener
     popupImage.removeEventListener('click', toggleZoom);
+
+    // Update URL and history state
+    if (pushState) {
+        history.pushState(null, '', window.location.pathname);
+    }
 }
 
 // Navigation arrows
@@ -176,6 +187,10 @@ function updatePopupImage() {
 
     // Rebuild popupInfo content
     buildPopupInfo(currentPopupPost, currentPopupImageIndex);
+
+    // Update URL and history state
+    const url = `?postId=${currentPopupPost.postId}&imageIndex=${currentPopupImageIndex}`;
+    history.replaceState({ postId: currentPopupPost.postId, imageIndex: currentPopupImageIndex }, '', url);
 
     // Maintain zoomed state
     const popupContent = document.querySelector('.popup-content');
@@ -417,3 +432,32 @@ function buildPopupInfo(post, imageIndex) {
 
 // Initial render
 renderGallery();
+
+// Handle history state and URL parameters
+window.addEventListener('popstate', function(event) {
+    if (event.state && event.state.postId !== undefined) {
+        const postId = event.state.postId;
+        const imageIndex = event.state.imageIndex || 0;
+        const post = galleryData.posts.find(p => p.postId === postId);
+        if (post) {
+            openPopup(post, imageIndex, false);
+        }
+    } else {
+        if (currentPopupPost) {
+            closePopup(false);
+        }
+    }
+});
+
+// On page load, check URL parameters
+document.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('postId')) {
+        const postId = parseInt(params.get('postId'), 10);
+        const imageIndex = parseInt(params.get('imageIndex'), 10) || 0;
+        const post = galleryData.posts.find(p => p.postId === postId);
+        if (post) {
+            openPopup(post, imageIndex, false);
+        }
+    }
+});
