@@ -1,0 +1,436 @@
+:root {
+    --primary: #2563eb;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --border: #e2e8f0;
+    --popup-bg: rgba(0, 0, 0, 0.8);
+    --arrow-color: rgba(255, 255, 255, 0.8);
+    --arrow-hover-color: rgba(255, 255, 255, 1);
+    --category-hover-bg: #e2e8f0; /* New variable for category hover background */
+    --category-hover-text: #1e40af; /* New variable for category hover text color */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.controls {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Category Filters */
+.category-filters {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.category-filter {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 2rem;
+    cursor: pointer;
+    background: var(--card);
+    transition: all 0.2s;
+}
+
+.category-filter:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.category-filter.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.search-box {
+    display: flex;
+    gap: 1rem;
+}
+
+input[type="search"] {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+input[type="search"]:focus {
+    border-color: var(--primary);
+}
+
+.gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.post-card {
+    background: var(--card);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.post-card:hover {
+    transform: translateY(-4px);
+}
+
+.post-title {
+    padding: 1rem;
+    font-size: 1.25rem;
+    font-weight: bold;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+}
+
+.images-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 0.5rem;
+    padding: 1rem;
+}
+
+.grid-image {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 0.5rem;
+    transition: transform 0.2s;
+}
+
+.grid-image:hover {
+    transform: scale(1.05);
+}
+
+.image-info {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex-grow: 1;
+}
+
+.info-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+    flex-wrap: wrap;
+}
+
+.info-row p, .info-row .sref {
+    flex: 1 1 60%;
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.info-row .sref {
+    color: #64748b;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.copy-btn {
+    background: transparent;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    flex: 0 0 auto;
+    margin-left: 0.5rem;
+}
+
+.copy-btn:hover {
+    opacity: 1;
+}
+
+.copy-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.copy-btn.copied {
+    color: #10b981;
+}
+
+.image-categories {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.25rem;
+}
+
+.category {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    background: var(--bg);
+    border-radius: 1rem;
+    color: #1e293b;
+    border: 1px solid var(--border);
+    cursor: pointer; /* Add cursor pointer for hover effect */
+    transition: background 0.2s, color 0.2s; /* Smooth transition */
+}
+
+/* Hover effect for category spans */
+.category:hover {
+    background: var(--category-hover-bg);
+    color: var(--category-hover-text);
+}
+
+/* Load More Button */
+.load-more {
+    display: block;
+    margin: 2rem auto 0;
+    padding: 0.75rem 1.5rem;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s;
+}
+
+.load-more:hover {
+    background: #1e40af;
+}
+
+.load-more:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+}
+
+/* Popup specific styles */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--popup-bg);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 200;
+    overflow: auto;
+}
+
+.popup-content {
+    background: var(--card);
+    border-radius: 0.75rem;
+    max-width: 95vw;
+    width: 95%;
+    max-height: 95vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-popup {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    padding: 0.5rem 1rem;
+    align-self: flex-end;
+    cursor: pointer;
+    color: var(--text);
+}
+
+.popup-title {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 1.5rem;
+    text-align: center;
+}
+
+.popup-image {
+    width: 100%;
+    max-height: 600px;
+    object-fit: contain;
+    background: #000;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    cursor: zoom-in;
+    transform-origin: center center;
+}
+
+.popup-image.zoomed {
+    width: auto;
+    height: auto;
+    max-width: 100vw;
+    max-height: 100vh;
+    cursor: zoom-out;
+}
+
+.popup-content.zoomed {
+    background: #000;
+}
+
+.popup-content.zoomed .popup-title {
+    display: none;
+}
+
+.popup-info {
+    padding: 1rem;
+    border-top: 1px solid var(--border);
+    overflow-y: auto;
+}
+
+/* Styles for tags within the popup */
+.popup-info .image-tags {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+}
+
+.popup-info .tag {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    background: var(--bg);
+    border-radius: 1rem;
+    color: #64748b;
+}
+
+/* Navigation Arrows */
+.nav-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--arrow-color);
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    transition: opacity 0.2s, background 0.2s;
+}
+
+.nav-arrow:hover {
+    opacity: 1;
+    background: var(--arrow-hover-color);
+}
+
+.prev-arrow {
+    left: 20px;
+}
+
+.next-arrow {
+    right: 20px;
+}
+
+.nav-arrow:focus {
+    outline: none;
+}
+
+/* Specific Changes to Move Copy Buttons to the Left in Popup */
+.popup-info .info-row .copy-btn {
+    order: -1;
+    margin-left: 0;
+    margin-right: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .popup-content {
+        width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .popup-image {
+        max-height: 50vh;
+    }
+
+    .popup-title {
+        font-size: 1.1rem;
+    }
+
+    .popup-info .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .popup-info .info-row p, .popup-info .info-row .sref {
+        flex: 1 1 100%;
+    }
+
+    .popup-info .info-row .copy-btn {
+        order: 0;
+        margin-right: 0;
+        margin-top: 0.5rem;
+    }
+
+    .nav-arrow {
+        width: 40px;
+        height: 40px;
+    }
+
+    .prev-arrow {
+        left: 10px;
+    }
+
+    .next-arrow {
+        right: 10px;
+    }
+
+    .popup-image.zoomed {
+        max-height: 100vh;
+        transform: scale(1.2);
+    }
+}

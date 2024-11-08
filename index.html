@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Image Gallery</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <!-- Category Filters -->
+            <div class="category-filters" id="categoryFilters"></div>
+            
+            <!-- Search Box -->
+            <div class="search-box">
+                <input type="search" id="search" placeholder="Search images, prompts, or SREFs...">
+            </div>
+        </div>
+        
+        <div class="gallery" id="gallery"></div>
+        <button class="load-more" id="loadMore">Load More</button>
+    </div>
+
+    <div class="popup-overlay" id="popup">
+        <div class="popup-content">
+            <button class="close-popup" onclick="closePopup()">×</button>
+            <h3 class="popup-title" id="popupTitle"></h3>
+            <img class="popup-image" id="popupImage" src="" alt="">
+            <div class="popup-info" id="popupInfo"></div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="gallery.js"></script>
+</body>
+</html>

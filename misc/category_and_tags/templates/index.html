@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Image JSON Manager</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .sidebar {
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            padding-top: 60px;
+            background-color: #343a40;
+            color: white;
+            width: 250px;
+            overflow-y: auto;
+        }
+        .sidebar h4 {
+            color: #fff;
+            padding-left: 15px;
+        }
+        .sidebar .list-group-item {
+            background-color: #343a40;
+            color: #fff;
+            border: none;
+        }
+        .content {
+            margin-left: 270px;
+            padding: 20px;
+        }
+        .image-card img {
+            border-radius: 5px;
+            width: 100%;
+            height: auto;
+            cursor: pointer; /* Indicate that the image is clickable */
+            transition: transform 0.3s ease;
+            transform-origin: center center;
+        }
+        /* Constrain image size within edit modals */
+        .modal-image {
+            max-width: 300px;
+            max-height: 300px;
+            width: auto;
+            height: auto;
+        }
+        /* Lightbox Overlay Styles */
+        .lightbox-overlay {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000; /* Higher than Bootstrap modals */
+            /* Removed the conflicting display property */
+            /* display: flex; */
+        }
+        /* Prevent background scrolling when lightbox is active */
+        body.no-scroll {
+            overflow: hidden;
+        }
+        /* Apply styles only to editing modals */
+        .edit-modal .modal-dialog {
+            max-width: 90%;
+            margin: auto;
+        }
+        .edit-modal .modal-content {
+            height: 90vh;
+        }
+        .edit-modal .modal-body {
+            height: calc(100% - 116px); /* Adjust based on modal-header and modal-footer height */
+            overflow: hidden;
+        }
+        .btn-small {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+        .modal-backdrop.show {
+            opacity: 0.5;
+        }
+        .select-full-height {
+            height: 100%;
+        }
+        .flex-column-full-height {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .flex-grow-1 {
+            flex-grow: 1;
+        }
+        /* Adjuster bar styles */
+        .adjuster-bar {
+            display: flex;
+            align-items: center;
+        }
+        .adjuster-bar input[type="range"] {
+            width: 150px;
+            margin-left: 10px;
+        }
+        /* Card title (file name) smaller */
+        .card-title {
+            font-size: 0.9rem;
+        }
+        /* Prompt hidden by default */
+        .prompt-text {
+            display: none;
+        }
+        /* Style for show/hide prompt button */
+        .toggle-prompt-btn {
+            margin-bottom: 10px;
+        }
+        /* Compact listing spacing for Srefs, Categories, and Tags */
+        .compact-listing p {
+            margin-bottom: 0.2rem;
+            font-size: 0.9rem;
+            line-height: 1.2;
+        }
+        /* Apply compact listing to the modal as well */
+        .edit-modal .modal-body .compact-listing p {
+            margin-bottom: 0.2rem;
+            font-size: 0.9rem;
+            line-height: 1.2;
+        }
+        /* New styles for bulk edit */
+        .select-all-container {
+            margin-bottom: 10px;
+        }
+        /* Floating Bulk Edit Button */
+        .bulk-edit-btn {
+            display: none; /* Hidden by default */
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1050; /* Above other elements */
+        }
+        .image-checkbox {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1;
+        }
+        .image-card {
+            position: relative;
+        }
+        /* Adjust z-index for Add Category/Add Tag Modals */
+        #addCategoryModal {
+            z-index: 1060;
+        }
+        #addCategoryModal + .modal-backdrop {
+            z-index: 1055;
+        }
+        #addTagModal {
+            z-index: 1060;
+        }
+        #addTagModal + .modal-backdrop {
+            z-index: 1055;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar for Categories and Tags -->
+    <div class="sidebar">
+        <div class="container">
+            <h4>Categories <button class="btn btn-sm btn-primary btn-small" data-bs-toggle="modal" data-bs-target="#addCategoryModal">+</button></h4>
+            <ul class="list-group mb-4" id="category-list">
+                {% for category in categories %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ category }}
+                        <button class="btn btn-sm btn-danger btn-small" onclick="deleteCategory('{{ category }}')">-</button>
+                    </li>
+                {% endfor %}
+                {% if not categories %}
+                    <li class="list-group-item">No categories available.</li>
+                {% endif %}
+            </ul>
+
+            <h4>Tags <button class="btn btn-sm btn-success btn-small" data-bs-toggle="modal" data-bs-target="#addTagModal">+</button></h4>
+            <ul class="list-group" id="tag-list">
+                {% for tag in tags %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ tag }}
+                        <button class="btn btn-sm btn-danger btn-small" onclick="deleteTag('{{ tag }}')">-</button>
+                    </li>
+                {% endfor %}
+                {% if not tags %}
+                    <li class="list-group-item">No tags available.</li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="content">
+        <h1 class="mt-4 mb-4">📁 Image JSON Manager</h1>
+
+        <!-- Adjuster Bar and Bulk Edit Controls -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="adjuster-bar">
+                <label for="gridSizeRange" class="form-label me-2">Adjust Grid Size:</label>
+                <input type="range" class="form-range" id="gridSizeRange">
+            </div>
+            <div class="select-all-container">
+                <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)">
+                <label for="selectAllCheckbox">Select All</label>
+            </div>
+        </div>
+
+        <!-- Image Gallery -->
+        <div class="row" id="imageGallery">
+            {% for image in images %}
+                <div class="col-md-4 mb-4 image-card-container" id="imageCard{{ loop.index }}">
+                    <div class="card image-card">
+                        <!-- Checkbox for selection -->
+                        <input type="checkbox" class="image-checkbox" data-json-file="{{ image.json_file|urlencode }}" onclick="toggleImageSelection()">
+                        {% if image.image_path %}
+                            <img src="{{ url_for('serve_image', filename=image.image_path) }}" alt="{{ image.image_name }}" onclick="openLightbox('{{ url_for('serve_image', filename=image.image_path) }}')">
+                        {% endif %}
+                        <div class="card-body compact-listing">
+                            <h5 class="card-title">{{ image.image_name }}</h5>
+                            <button class="btn btn-sm btn-secondary toggle-prompt-btn" onclick="togglePrompt({{ loop.index }})">Show Prompt</button>
+                            <p class="card-text prompt-text" id="promptText{{ loop.index }}"><strong>Prompt:</strong> {{ image.prompt }}</p>
+                            <p class="card-text"><strong>Srefs:</strong> {{ image.sref|join(', ') if image.sref else 'None' }}</p>
+                            <p class="card-text" id="categoriesText{{ loop.index }}"><strong>Categories:</strong> {{ image.categories|join(', ') if image.categories else 'None' }}</p>
+                            <p class="card-text" id="tagsText{{ loop.index }}"><strong>Tags:</strong> {{ image.tags|join(', ') if image.tags else 'None' }}</p>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal{{ loop.index }}">Edit</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Edit Modal -->
+                <div class="modal fade edit-modal" id="editModal{{ loop.index }}" tabindex="-1" aria-labelledby="editModalLabel{{ loop.index }}" aria-hidden="true" data-bs-backdrop="static">
+                  <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content">
+                      <form id="editForm{{ loop.index }}" style="height: 100%;">
+                          <div class="modal-header">
+                            <h5 class="modal-title" id="editModalLabel{{ loop.index }}">Edit Categories & Tags for {{ image.image_name }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body d-flex">
+                              <!-- Image Display -->
+                              <div class="me-3">
+                                  {% if image.image_path %}
+                                      <img src="{{ url_for('serve_image', filename=image.image_path) }}" alt="{{ image.image_name }}" class="modal-image" onclick="openLightbox('{{ url_for('serve_image', filename=image.image_path) }}')">
+                                  {% endif %}
+                              </div>
+                              <!-- Form Fields and Compact Listing -->
+                              <div class="flex-grow-1 flex-column-full-height">
+                                  <div class="row flex-grow-1">
+                                      <!-- Categories -->
+                                      <div class="col-md-6 d-flex flex-column">
+                                          <label class="form-label"><strong>Categories</strong></label>
+                                          <div class="input-group flex-grow-1">
+                                              <select class="form-select select-full-height" name="categories" multiple required id="categoriesSelect{{ loop.index }}">
+                                                  {% for category in categories %}
+                                                      <option value="{{ category }}" {% if category in image.categories %}selected{% endif %}>{{ category }}</option>
+                                                  {% endfor %}
+                                              </select>
+                                              <button type="button" class="btn btn-outline-secondary btn-small" onclick="openAddCategoryModal()">+</button>
+                                          </div>
+                                      </div>
+                                      <!-- Tags -->
+                                      <div class="col-md-6 d-flex flex-column">
+                                          <label class="form-label"><strong>Tags</strong></label>
+                                          <div class="input-group flex-grow-1">
+                                              <select class="form-select select-full-height" name="tags" multiple id="tagsSelect{{ loop.index }}">
+                                                  {% for tag in tags %}
+                                                      <option value="{{ tag }}" {% if tag in image.tags %}selected{% endif %}>{{ tag }}</option>
+                                                  {% endfor %}
+                                              </select>
+                                              <button type="button" class="btn btn-outline-success btn-small" onclick="openAddTagModal()">+</button>
+                                          </div>
+                                      </div>
+                                  </div>
+
+                                  <!-- Compact Listing -->
+                                  <div class="compact-listing mt-2">
+                                      <p><strong>Srefs:</strong> {{ image.sref|join(', ') if image.sref else 'None' }}</p>
+                                      <p id="modalCategoriesText{{ loop.index }}"><strong>Categories:</strong> {{ image.categories|join(', ') if image.categories else 'None' }}</p>
+                                      <p id="modalTagsText{{ loop.index }}"><strong>Tags:</strong> {{ image.tags|join(', ') if image.tags else 'None' }}</p>
+                                  </div>
+
+                                  <!-- Notification Area -->
+                                  <div id="modalAlert{{ loop.index }}"></div>
+                              </div>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-primary" onclick="updateImage('{{ image.json_file|urlencode }}', {{ loop.index }})">Save changes</button>
+                          </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                <!-- End of Edit Modal -->
+
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Floating Bulk Edit Button -->
+    <button class="btn btn-warning btn-sm bulk-edit-btn" id="bulkEditBtn" data-bs-toggle="modal" data-bs-target="#bulkEditModal">Bulk Edit</button>
+
+    <!-- Lightbox Overlay -->
+    <div class="lightbox-overlay" id="lightboxOverlay" onclick="closeLightbox()">
+        <img src="" alt="Zoomed Image" id="lightboxImage">
+    </div>
+
+    <!-- Add Category Modal -->
+    <div class="modal fade" id="addCategoryModal" tabindex="-1" aria-labelledby="addCategoryModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form id="addCategoryForm">
+              <div class="modal-header">
+                <h5 class="modal-title" id="addCategoryModalLabel">Add New Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                  <div class="input-group">
+                      <input type="text" class="form-control" name="new_category" id="newCategoryInput" placeholder="New Category" required>
+                      <button type="submit" class="btn btn-primary btn-small">Add</button>
+                  </div>
+                  <!-- Notification Area -->
+                  <div id="categoryAlert"></div>
+              </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <!-- End of Add Category Modal -->
+
+    <!-- Add Tag Modal -->
+    <div class="modal fade" id="addTagModal" tabindex="-1" aria-labelledby="addTagModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form id="addTagForm">
+              <div class="modal-header">
+                <h5 class="modal-title" id="addTagModalLabel">Add New Tag</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                  <div class="input-group">
+                      <input type="text" class="form-control" name="new_tag" id="newTagInput" placeholder="New Tag" required>
+                      <button type="submit" class="btn btn-success btn-small">Add</button>
+                  </div>
+                  <!-- Notification Area -->
+                  <div id="tagAlert"></div>
+              </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <!-- End of Add Tag Modal -->
+
+    <!-- Bulk Edit Modal -->
+    <div class="modal fade" id="bulkEditModal" tabindex="-1" aria-labelledby="bulkEditModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form id="bulkEditForm">
+              <div class="modal-header">
+                <h5 class="modal-title" id="bulkEditModalLabel">Bulk Edit Categories & Tags</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                  <!-- Categories -->
+                  <div class="mb-3">
+                      <label class="form-label"><strong>Categories to Add</strong></label>
+                      <div class="input-group">
+                          <select class="form-select" name="categories" multiple id="bulkCategoriesSelect">
+                              {% for category in categories %}
+                                  <option value="{{ category }}">{{ category }}</option>
+                              {% endfor %}
+                          </select>
+                          <button type="button" class="btn btn-outline-secondary btn-small" onclick="openAddCategoryModal()">+</button>
+                      </div>
+                  </div>
+                  <!-- Tags -->
+                  <div class="mb-3">
+                      <label class="form-label"><strong>Tags to Add</strong></label>
+                      <div class="input-group">
+                          <select class="form-select" name="tags" multiple id="bulkTagsSelect">
+                              {% for tag in tags %}
+                                  <option value="{{ tag }}">{{ tag }}</option>
+                              {% endfor %}
+                          </select>
+                          <button type="button" class="btn btn-outline-success btn-small" onclick="openAddTagModal()">+</button>
+                      </div>
+                  </div>
+                  <!-- Notification Area -->
+                  <div id="bulkEditAlert"></div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" class="btn btn-primary">Apply to Selected Images</button>
+              </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <!-- End of Bulk Edit Modal -->
+
+    <!-- Bootstrap JS and Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Include jQuery for simplicity -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- JavaScript for AJAX Calls and Dynamic Updates -->
+    <script>
+        var currentModalIndex = null;
+
+        // Variables for grid size adjustment
+        var minGridSize = 1;
+        var maxGridSize = 7;
+        var defaultGridSize = 7;
+
+        // Initialize the grid size range input
+        var gridSizeRange = document.getElementById('gridSizeRange');
+        gridSizeRange.min = minGridSize;
+        gridSizeRange.max = maxGridSize;
+        gridSizeRange.value = defaultGridSize;
+
+        // Adjuster Bar Functionality
+        $('#gridSizeRange').on('input', function() {
+            var gridSize = $(this).val();
+            var customWidth;
+            var fontSize;
+
+            switch (gridSize) {
+                case '1':
+                    customWidth = '100%';  // 1 column per row
+                    fontSize = '1.2rem';
+                    break;
+                case '2':
+                    customWidth = '50%';   // 2 columns per row
+                    fontSize = '1.1rem';
+                    break;
+                case '3':
+                    customWidth = '33.33%'; // 3 columns per row
+                    fontSize = '1rem';
+                    break;
+                case '4':
+                    customWidth = '25%';   // 4 columns per row
+                    fontSize = '0.9rem';
+                    break;
+                case '5':
+                    customWidth = '20%';   // 5 columns per row
+                    fontSize = '0.85rem';
+                    break;
+                case '6':
+                    customWidth = '16.66%'; // 6 columns per row
+                    fontSize = '0.8rem';
+                    break;
+                case '7':
+                    customWidth = '14.28%'; // 7 columns per row
+                    fontSize = '0.75rem';
+                    break;
+                default:
+                    customWidth = '33.33%'; // Default to 3 columns per row
+                    fontSize = '1rem';
+            }
+
+            // Apply custom width to each image-card-container
+            $('#imageGallery .image-card-container').each(function() {
+                $(this).css('flex', '0 0 ' + customWidth);  // Set flex-basis to custom width
+                $(this).find('.card-body').css('font-size', fontSize);
+                $(this).find('.card-title').css('font-size', 'calc(' + fontSize + ' - 0.1rem)');
+            });
+        }).trigger('input'); // Trigger input event on page load to set default sizes
+
+
+        // Open Add Category Modal
+        function openAddCategoryModal() {
+            $('#addCategoryModal').modal('show');
+        }
+
+        // Open Add Tag Modal
+        function openAddTagModal() {
+            $('#addTagModal').modal('show');
+        }
+
+        // Add New Category
+        $('#addCategoryForm').submit(function(event) {
+            event.preventDefault();
+            let newCategory = $('#newCategoryInput').val().trim();
+            if (newCategory === '') return;
+            $.ajax({
+                url: '{{ url_for("add_category") }}',
+                method: 'POST',
+                data: { 'new_category': newCategory },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        // Update category list in sidebar
+                        $('#category-list').append('<li class="list-group-item d-flex justify-content-between align-items-center">' + response.category + '<button class="btn btn-sm btn-danger btn-small" onclick="deleteCategory(\'' + response.category + '\')">-</button></li>');
+                        // Update global select elements
+                        $('select[name="categories"]').each(function() {
+                            if (!$(this).find('option[value="' + response.category + '"]').length) {
+                                $(this).append('<option value="' + response.category + '">' + response.category + '</option>');
+                            }
+                        });
+                        $('#newCategoryInput').val('');
+                        $('#categoryAlert').html('<div class="alert alert-success">' + response.message + '</div>');
+                    } else if (response.status === 'exists') {
+                        $('#categoryAlert').html('<div class="alert alert-warning">' + response.message + '</div>');
+                    } else {
+                        $('#categoryAlert').html('<div class="alert alert-danger">' + response.message + '</div>');
+                    }
+                },
+                error: function() {
+                    $('#categoryAlert').html('<div class="alert alert-danger">An error occurred while adding the category.</div>');
+                }
+            });
+        });
+
+        // Add New Tag
+        $('#addTagForm').submit(function(event) {
+            event.preventDefault();
+            let newTag = $('#newTagInput').val().trim();
+            if (newTag === '') return;
+            $.ajax({
+                url: '{{ url_for("add_tag") }}',
+                method: 'POST',
+                data: { 'new_tag': newTag },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        // Update tag list in sidebar
+                        $('#tag-list').append('<li class="list-group-item d-flex justify-content-between align-items-center">' + response.tag + '<button class="btn btn-sm btn-danger btn-small" onclick="deleteTag(\'' + response.tag + '\')">-</button></li>');
+                        // Update global select elements
+                        $('select[name="tags"]').each(function() {
+                            if (!$(this).find('option[value="' + response.tag + '"]').length) {
+                                $(this).append('<option value="' + response.tag + '">' + response.tag + '</option>');
+                            }
+                        });
+                        $('#newTagInput').val('');
+                        $('#tagAlert').html('<div class="alert alert-success">' + response.message + '</div>');
+                    } else if (response.status === 'exists') {
+                        $('#tagAlert').html('<div class="alert alert-warning">' + response.message + '</div>');
+                    } else {
+                        $('#tagAlert').html('<div class="alert alert-danger">' + response.message + '</div>');
+                    }
+                },
+                error: function() {
+                    $('#tagAlert').html('<div class="alert alert-danger">An error occurred while adding the tag.</div>');
+                }
+            });
+        });
+
+        // Delete Category
+        function deleteCategory(category) {
+            $.ajax({
+                url: '{{ url_for("delete_category") }}',
+                method: 'POST',
+                data: { 'category': category },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        // Remove category from lists
+                        $('#category-list li:contains("' + response.category + '")').remove();
+                        $('select[name="categories"] option[value="' + response.category + '"]').remove();
+                    } else {
+                        alert(response.message);
+                    }
+                },
+                error: function() {
+                    alert('An error occurred while deleting the category.');
+                }
+            });
+        }
+
+        // Delete Tag
+        function deleteTag(tag) {
+            $.ajax({
+                url: '{{ url_for("delete_tag") }}',
+                method: 'POST',
+                data: { 'tag': tag },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        // Remove tag from lists
+                        $('#tag-list li:contains("' + response.tag + '")').remove();
+                        $('select[name="tags"] option[value="' + response.tag + '"]').remove();
+                    } else {
+                        alert(response.message);
+                    }
+                },
+                error: function() {
+                    alert('An error occurred while deleting the tag.');
+                }
+            });
+        }
+
+        // Update Image Categories and Tags
+        function updateImage(jsonFile, modalIndex) {
+            let categories = $('#categoriesSelect' + modalIndex).val() || [];
+            let tags = $('#tagsSelect' + modalIndex).val() || [];
+            $.ajax({
+                url: '/update/' + encodeURIComponent(jsonFile),
+                method: 'POST',
+                data: {
+                    'categories[]': categories,
+                    'tags[]': tags
+                },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        $('#modalAlert' + modalIndex).html('<div class="alert alert-success">' + response.message + '</div>');
+                        // Update the categories and tags displayed in the gallery
+                        $('#categoriesText' + modalIndex).html('<strong>Categories:</strong> ' + (categories.length > 0 ? categories.join(', ') : 'None'));
+                        $('#tagsText' + modalIndex).html('<strong>Tags:</strong> ' + (tags.length > 0 ? tags.join(', ') : 'None'));
+                        // Update the categories and tags displayed in the modal
+                        $('#modalCategoriesText' + modalIndex).html('<strong>Categories:</strong> ' + (categories.length > 0 ? categories.join(', ') : 'None'));
+                        $('#modalTagsText' + modalIndex).html('<strong>Tags:</strong> ' + (tags.length > 0 ? tags.join(', ') : 'None'));
+                    } else {
+                        $('#modalAlert' + modalIndex).html('<div class="alert alert-danger">' + response.message + '</div>');
+                    }
+                },
+                error: function() {
+                    $('#modalAlert' + modalIndex).html('<div class="alert alert-danger">An error occurred while updating the image.</div>');
+                }
+            });
+        }
+
+        // Handle Modals Stacking
+        $('#addCategoryModal, #addTagModal').on('hidden.bs.modal', function () {
+            if (currentModalIndex !== null) {
+                // Focus back on the editing modal
+                $('#editModal' + currentModalIndex).focus();
+            }
+        });
+
+        // Capture current modal index when editing an image
+        $('[id^=editModal]').on('show.bs.modal', function (event) {
+            var modalId = $(this).attr('id');
+            currentModalIndex = modalId.replace('editModal', '');
+        });
+
+        // Reset currentModalIndex when editing modal is closed
+        $('[id^=editModal]').on('hidden.bs.modal', function (event) {
+            currentModalIndex = null;
+        });
+
+        // Toggle Prompt Visibility
+        function togglePrompt(index) {
+            var promptText = $('#promptText' + index);
+            var button = promptText.prev('.toggle-prompt-btn');
+            if (promptText.is(':visible')) {
+                promptText.hide();
+                button.text('Show Prompt');
+            } else {
+                promptText.show();
+                button.text('Hide Prompt');
+            }
+        }
+
+        // Toggle Select All functionality
+        function toggleSelectAll(checkbox) {
+            var isChecked = $(checkbox).is(':checked');
+            $('.image-checkbox').prop('checked', isChecked);
+            toggleBulkEditButton();
+        }
+
+        // Toggle Bulk Edit Button visibility based on selection count
+        function toggleBulkEditButton() {
+            var checked = $('.image-checkbox:checked').length;
+            if (checked >= 2) {
+                $('#bulkEditBtn').fadeIn();
+            } else {
+                $('#bulkEditBtn').fadeOut();
+            }
+        }
+
+        // Toggle Bulk Edit Button when individual images are selected/deselected
+        function toggleImageSelection() {
+            var totalCheckboxes = $('.image-checkbox').length;
+            var checkedCheckboxes = $('.image-checkbox:checked').length;
+            $('#selectAllCheckbox').prop('checked', totalCheckboxes === checkedCheckboxes);
+            toggleBulkEditButton();
+        }
+
+        // Handle Bulk Edit Form submission
+        $('#bulkEditForm').submit(function(event) {
+            event.preventDefault();
+            let categories = $('#bulkCategoriesSelect').val() || [];
+            let tags = $('#bulkTagsSelect').val() || [];
+            let jsonFiles = [];
+            $('.image-checkbox:checked').each(function() {
+                jsonFiles.push($(this).data('json-file'));
+            });
+            if (jsonFiles.length < 2) { // Ensure at least two images are selected
+                $('#bulkEditAlert').html('<div class="alert alert-warning">Please select at least two images for bulk edit.</div>');
+                return;
+            }
+            $.ajax({
+                url: '/bulk_update',
+                method: 'POST',
+                data: {
+                    'json_files[]': jsonFiles,
+                    'categories[]': categories,
+                    'tags[]': tags
+                },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        $('#bulkEditAlert').html('<div class="alert alert-success">' + response.message + '</div>');
+                        // Optionally, refresh the page or update the UI to reflect changes
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        $('#bulkEditAlert').html('<div class="alert alert-danger">' + response.message + '</div>');
+                    }
+                },
+                error: function() {
+                    $('#bulkEditAlert').html('<div class="alert alert-danger">An error occurred during bulk update.</div>');
+                }
+            });
+        });
+
+        // Attach event handlers
+        $('.image-checkbox').on('change', toggleImageSelection);
+
+        // Lightbox Functionality
+        function openLightbox(imageSrc) {
+            if (imageSrc.trim() === '') {
+                // Prevent opening lightbox if imageSrc is empty
+                return;
+            }
+            $('#lightboxImage').attr('src', imageSrc);
+            // Set display to flex before fading in for proper alignment
+            $('#lightboxOverlay').css('display', 'flex').hide().fadeIn();
+            $('body').addClass('no-scroll');
+        }
+
+        function closeLightbox() {
+            $('#lightboxOverlay').fadeOut();
+            $('#lightboxImage').attr('src', '');
+            $('body').removeClass('no-scroll');
+        }
+
+        // Prevent event propagation when clicking on the zoomed image
+        $('#lightboxImage').on('click', function(event) {
+            event.stopPropagation();
+            closeLightbox();
+        });
+
+        // Close lightbox with the Esc key
+        $(document).keydown(function(event) {
+            if (event.key === "Escape") {
+                closeLightbox();
+            }
+        });
+    </script>
+
+</body>
+</html>
